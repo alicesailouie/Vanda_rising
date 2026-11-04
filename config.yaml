@@ -1,0 +1,104 @@
+# Vanda Rising configuration. Paths are relative to the repository root.
+
+lake:
+  name: Lake Vanda
+  lon: 161.567          # 77°31'S 161°34'E
+  lat: -77.517
+  buffer_m: 7000        # half-width of the DEM window (EPSG:3031 metres)
+  seed_search_m: 1500   # radius searched for the flattest low pixel (lake ice)
+  surface_tolerance_m: 0.3   # 0.75 leaks onto the flat Onyx River delta (checked on REMA 10 m)
+
+rema:
+  collection: rema-mosaics-v2.0-10m   # or rema-mosaics-v2.0-2m (slower, ~25x the pixels)
+  dem_path: data/processed/rema_vanda.tif
+
+hypsometry:
+  dz_m: 0.25
+  max_rise_m: 40
+
+lter:
+  # Download manually from the EDI portal (login/bot check); see docs/data_sources.md
+  lake_levels_csv: data/raw/lter/lake_levels.csv
+  met_csv: data/raw/lter/vanda_met.csv
+  discharge_csv: data/raw/lter/onyx_vanda_discharge.csv   # Onyx River at Lake Vanda weir
+  discharge_units: l/s
+  ice_thickness_csv: data/raw/lter/lake_ice_thickness.csv
+  lake_filter: Vanda
+  # Optional explicit column names if auto-detection picks the wrong ones
+  columns:
+    levels: { date: null, level: null, lake: null }
+    met: { date: null, temp: null, wind: null }
+  min_season_coverage: 0.8
+  # Date of the REMA surface over Vanda (see the tile's meta.txt). Used to shift
+  # the DEM water level to the most recent LTER survey. null = assume no change.
+  rema_epoch: null
+
+model:
+  features: [pdd]       # add wind_djf or hours_above_0 to experiment
+  n_sims: 2000
+  seed: 42
+  start_year: 2025
+  end_year: 2100
+
+racmo:
+  # Quantarctica GeoTIFFs (Quantarctica package > Atmospheric sciences). Fill in the
+  # paths after downloading. Values in K or °C are both handled.
+  t2m_hist: data/raw/quantarctica/racmo_t2m_1979_2022.tif
+  t2m_future:
+    ssp126:
+      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp126.tif
+      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp126.tif
+      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp126.tif
+    ssp245:
+      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp245.tif
+      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp245.tif
+      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp245.tif
+    ssp585:
+      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp585.tif
+      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp585.tif
+      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp585.tif
+
+  # Sublimation scales ice ablation / water loss (ratio future / 1979-2022).
+  sublimation_hist: data/raw/quantarctica/racmo_sublimation_1979_2022.tif
+  sublimation_future:
+    ssp126:
+      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp126.tif
+      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp126.tif
+      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp126.tif
+    ssp245:
+      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp245.tif
+      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp245.tif
+      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp245.tif
+    ssp585:
+      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp585.tif
+      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp585.tif
+      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp585.tif
+
+ice:
+  k_w_m_k: 2.2
+  ablation_m_yr: 0.35     # prior for surface ablation; refine from LTER ablation data
+  basal_flux_w_m2: null   # null = calibrate from observed mean thickness
+
+inundation:
+  quantiles: [p50, p95]
+  years: [2050, 2100]
+  # Quantarctica vector layers to test against the flood extents (any OGR format)
+  assets:
+    - data/raw/quantarctica/asma.gpkg
+    - data/raw/quantarctica/historic_sites_monuments.gpkg
+    - data/raw/quantarctica/building_footprint_brooks.gpkg
+    - data/raw/quantarctica/ground_disturbance_brooks.gpkg
+
+dts:
+  # Allan Hills borehole DTS, USAP-DC 10.15784/602025 (manual download, reCAPTCHA)
+  allan_hills_dir: data/raw/dts/602025
+  site_lon: 159.375
+  site_lat: -76.727
+  depth_band_m: [10, 20]
+  compare_rasters:
+    racmo_t2m_1979_2022: data/raw/quantarctica/racmo_t2m_1979_2022.tif
+    imau_fdm_t10m: data/raw/quantarctica/imau_fdm_10m_temperature.tif
+
+paths:
+  outputs: outputs
+  figures: figures

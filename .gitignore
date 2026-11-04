@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Data are downloaded or fetched, never committed (see docs/data_sources.md)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+outputs/
+
+# Figures are committed so the README can show them
+!figures/
