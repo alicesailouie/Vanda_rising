@@ -55,7 +55,9 @@ def equilibrium_rise(curve: pd.DataFrame, q_mean_m3: float, loss_m: float) -> fl
 
 def project_waterbalance(inflow_model: LevelModel, forcings: list[SeasonForcing], delta_ts: pd.DataFrame,
                          sub_ratio_ts: pd.DataFrame | None, curve: pd.DataFrame, loss_mean: float,
-                         loss_sd: float, n_seasons_calib: int, n_sims: int = 2000, seed: int = 42):
+                         loss_sd: float, n_seasons_calib: int, n_sims: int = 2000, seed: int = 42,
+                         log_inflow: bool = False):
+    """``log_inflow``: the inflow model predicts ln(volume), so samples are exp(normal)."""
     rng = np.random.default_rng(seed)
     years = delta_ts.index.to_numpy()
     max_rise = float(curve["rise_m"].max())
@@ -71,13 +73,18 @@ def project_waterbalance(inflow_model: LevelModel, forcings: list[SeasonForcing]
         for j, yr in enumerate(years):
             mu, sd, out = predict_cached(inflow_model, forcings, cache, delta_ts.loc[yr, scen])
             pick = rng.integers(len(forcings), size=n_sims)
-            q = np.clip(rng.normal(mu[pick], sd[pick]), 0, None)
+            if log_inflow:
+                q = np.exp(rng.normal(mu[pick], sd[pick]))
+                q_mean = float(np.exp(mu + sd ** 2 / 2).mean())
+            else:
+                q = np.clip(rng.normal(mu[pick], sd[pick]), 0, None)
+                q_mean = float(mu.mean())
             ratio = 1.0 if sub_ratio_ts is None else float(sub_ratio_ts.loc[yr, scen])
             loss = np.clip(l_sim * ratio + rng.normal(0, loss_sd, n_sims), 0, None)
             a = area_m2(curve, np.clip(rise, 0, max_rise))
             rise = rise + (q - loss * a) / a
             cum[:, j] = rise
-            q_year_mean[j] = mu.mean()
+            q_year_mean[j] = q_mean
             extrap[j] = out[pick].mean()
         rows += _quantile_rows(scen, years, cum, {"delta_t": delta_ts[scen].to_numpy(),
                                                   "mean_inflow_m3": q_year_mean,

@@ -4,7 +4,7 @@ lake:
   name: Lake Vanda
   lon: 161.567          # 77°31'S 161°34'E
   lat: -77.517
-  buffer_m: 7000        # half-width of the DEM window (EPSG:3031 metres)
+  buffer_m: 20000       # half-width of the DEM window (EPSG:3031 metres); wide enough for +150 m
   seed_search_m: 1500   # radius searched for the flattest low pixel (lake ice)
   surface_tolerance_m: 0.3   # 0.75 leaks onto the flat Onyx River delta (checked on REMA 10 m)
 
@@ -14,20 +14,20 @@ rema:
 
 hypsometry:
   dz_m: 0.25
-  max_rise_m: 40
+  max_rise_m: 150
 
 lter:
   # Download manually from the EDI portal (login/bot check); see docs/data_sources.md
-  lake_levels_csv: data/raw/lter/lake_levels.csv
-  met_csv: data/raw/lter/vanda_met.csv
-  discharge_csv: data/raw/lter/onyx_vanda_discharge.csv   # Onyx River at Lake Vanda weir
+  lake_levels_csv: data/raw/lter/levels.csv   # knb-lter-mcm.68.15
+  met_csv: data/raw/lter/met_hr.csv   # knb-lter-mcm.7015.22 (hourly)
+  discharge_csv: data/raw/lter/onyx_d.csv   # knb-lter-mcm.9122.7, Onyx at Vanda weir
   discharge_units: l/s
-  ice_thickness_csv: data/raw/lter/lake_ice_thickness.csv
+  ice_thickness_csv: data/raw/lter/ice.csv   # knb-lter-mcm.67 (67.19)
   lake_filter: Vanda
   # Optional explicit column names if auto-detection picks the wrong ones
   columns:
     levels: { date: null, level: null, lake: null }
-    met: { date: null, temp: null, wind: null }
+    met: { date: date_time, temp: airtemp_3m_degc, wind: wspd_ms }
   min_season_coverage: 0.8
   # Date of the REMA surface over Vanda (see the tile's meta.txt). Used to shift
   # the DEM water level to the most recent LTER survey. null = assume no change.
@@ -35,44 +35,33 @@ lter:
 
 model:
   features: [pdd]       # add wind_djf or hours_above_0 to experiment
+  log_inflow: false     # true = GP on ln(inflow); extrapolates exponentially far outside observed summers
+  control_run: true     # add a 'no further warming' scenario
   n_sims: 2000
   seed: 42
   start_year: 2025
   end_year: 2100
 
 racmo:
-  # Quantarctica GeoTIFFs (Quantarctica package > Atmospheric sciences). Fill in the
-  # paths after downloading. Values in K or °C are both handled.
-  t2m_hist: data/raw/quantarctica/racmo_t2m_1979_2022.tif
-  t2m_future:
-    ssp126:
-      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp126.tif
-      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp126.tif
-      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp126.tif
-    ssp245:
-      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp245.tif
-      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp245.tif
-      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp245.tif
-    ssp585:
-      2025-2050: data/raw/quantarctica/racmo_t2m_2025_2050_ssp585.tif
-      2051-2075: data/raw/quantarctica/racmo_t2m_2051_2075_ssp585.tif
-      2076-2099: data/raw/quantarctica/racmo_t2m_2076_2099_ssp585.tif
-
-  # Sublimation scales ice ablation / water loss (ratio future / 1979-2022).
-  sublimation_hist: data/raw/quantarctica/racmo_sublimation_1979_2022.tif
-  sublimation_future:
-    ssp126:
-      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp126.tif
-      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp126.tif
-      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp126.tif
-    ssp245:
-      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp245.tif
-      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp245.tif
-      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp245.tif
-    ssp585:
-      2025-2050: data/raw/quantarctica/racmo_sublimation_2025_2050_ssp585.tif
-      2051-2075: data/raw/quantarctica/racmo_sublimation_2051_2075_ssp585.tif
-      2076-2099: data/raw/quantarctica/racmo_sublimation_2076_2099_ssp585.tif
+  # Yearly RACMO2.3p2 driven by CESM2 (van Wessem et al., Zenodo doi:10.5281/zenodo.6416973).
+  # The historical run and the SSPs come from the same model chain, so only changes are used.
+  # Rename the downloads to these short names (Windows path-length limit). See docs/data_sources.md.
+  format: netcdf
+  grid: data/raw/racmo/grid.nc                  # Height_latlon_ANT27.nc
+  n_cells: 4                                    # inverse-distance mean of the nearest 27 km cells
+  smooth_yr: 21                                 # running mean removes CESM2's own year-to-year noise
+  baseline: [1994, 2025]                        # = the Lake Vanda station record, so observed summers are zero change
+  summer_scaling: 1.0                           # summer warming / annual warming (unknown here; 1.0 = upper end)
+  t2m:
+    hist: data/raw/racmo/t2m_hist.nc            # t2m_yearlyA_ANT27_CESM2_RACMO2.3p2_hist_r567_1950_2014.nc
+    ssp126: data/raw/racmo/t2m_SSP126.nc
+    ssp245: data/raw/racmo/t2m_SSP245.nc
+    ssp585: data/raw/racmo/t2m_SSP585.nc
+  sublimation:
+    hist: data/raw/racmo/subl_hist.nc           # subl_yearlyS_ANT27_CESM2_RACMO2.3p2_hist_r567_1950_2014.nc
+    ssp126: data/raw/racmo/subl_SSP126.nc
+    ssp245: data/raw/racmo/subl_SSP245.nc
+    ssp585: data/raw/racmo/subl_SSP585.nc
 
 ice:
   k_w_m_k: 2.2

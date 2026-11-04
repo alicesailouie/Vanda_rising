@@ -12,7 +12,7 @@ import pandas as pd  # noqa: E402
 
 # Categorical slots in fixed order (validated reference palette); ink tokens for text.
 SCENARIO_COLORS = {"ssp126": "#2a78d6", "ssp245": "#eb6834", "ssp585": "#1baf7a"}
-SCENARIO_LABELS = {"ssp126": "SSP1-2.6", "ssp245": "SSP2-4.5", "ssp585": "SSP5-8.5"}
+SCENARIO_LABELS = {"no_warming": "No further warming", "ssp126": "SSP1-2.6", "ssp245": "SSP2-4.5", "ssp585": "SSP5-8.5"}
 INK, INK2, MUTED, SURFACE, GRID = "#0b0b0b", "#52514e", "#898781", "#fcfcfb", "#e6e5e0"
 
 plt.rcParams.update({

@@ -61,6 +61,21 @@ def load_real_inputs(cfg) -> Inputs:
         ice = lter.load_ice_thickness(p, L["lake_filter"])
     lon, lat = cfg["lake"]["lon"], cfg["lake"]["lat"]
     R = cfg["racmo"]
+    if R.get("format") == "netcdf":
+        from .racmo_nc import change_table
+        kw = dict(grid=resolve(cfg, R["grid"]), lon=lon, lat=lat, n_cells=R.get("n_cells", 4),
+                  smooth_yr=R.get("smooth_yr", 21), baseline=tuple(R.get("baseline", (1995, 2014))))
+        tch = change_table({k: resolve(cfg, v) for k, v in R["t2m"].items()}, "t2m", mode="delta", **kw)
+        # Yearly files give annual-mean warming; summer warming can be smaller (Antarctic
+        # warming is winter-amplified). summer_scaling converts one to the other.
+        tch["change"] *= float(R.get("summer_scaling", 1.0))
+        sch = None
+        if R.get("sublimation"):
+            sch = change_table({k: resolve(cfg, v) for k, v in R["sublimation"].items()}, "subl", mode="ratio", **kw)
+        offset = 0.0
+        if L.get("rema_epoch"):
+            offset = float(levels.iloc[-1] - lter.level_at(levels, L["rema_epoch"]))
+        return Inputs(read_dem(dem_path), levels, met, tch, sch, inflow, ice, offset)
     tch = racmo_change(resolve(cfg, R["t2m_hist"]), {s: {k: resolve(cfg, v) for k, v in d.items()}
                                                       for s, d in R["t2m_future"].items()}, lon, lat, "delta")
     sch = None
@@ -98,6 +113,12 @@ def analyse(inp: Inputs, cfg, out: Path, figs: Path, tag: str | None = None) -> 
     years = range(M["start_year"], M["end_year"] + 1)
     delta_ts = change_timeseries(inp.t_change, years, "delta")
     sub_ts = change_timeseries(inp.s_change, years, "ratio") if inp.s_change is not None else None
+    # Control run: today's climate held fixed. It isolates the lake's committed rise from the
+    # effect of warming, and needs no extrapolation beyond the observed summers.
+    if M.get("control_run", True):
+        delta_ts.insert(0, "no_warming", 0.0)
+        if sub_ts is not None:
+            sub_ts.insert(0, "no_warming", 1.0)
     pd.concat({"delta_t2m_c": delta_ts, **({"sublimation_ratio": sub_ts} if sub_ts is not None else {})}, axis=1).to_csv(out / "forcing_timeseries.csv")
 
     # ---- engine 1: statistical
@@ -117,19 +138,27 @@ def analyse(inp: Inputs, cfg, out: Path, figs: Path, tag: str | None = None) -> 
 
     # ---- engine 2: water balance
     if inp.inflow is not None:
-        dq = build_dataset(inp.inflow, feats)
+        # Seasonal inflow is heavy-tailed (one flood summer can carry 10x the median), so the
+        # GP learns ln(volume) by default: errors become multiplicative, as in the observations.
+        log_q = bool(M.get("log_inflow", True))
+        target = np.log(inp.inflow.clip(lower=1.0)) if log_q else inp.inflow
+        dq = build_dataset(target, feats)
         m_q, p_q = cross_validate(dq, features, "inflow_m3", M["seed"])
         m_q.to_csv(out / "cv_inflow.csv"); p_q.to_csv(out / "cv_inflow_predictions.csv")
         q_model = fit(dq, features, "inflow_m3", M["seed"])
         loss_mean, loss_sd, loss_tab = calibrate_loss(dlevel, inp.inflow, area0)
         loss_tab.to_csv(out / "water_balance_calibration.csv")
         wb_proj, eq, _ = project_waterbalance(q_model, forcings, delta_ts, sub_ts, curve, loss_mean, loss_sd,
-                                              len(loss_tab), M["n_sims"], M["seed"])
+                                              len(loss_tab), M["n_sims"], M["seed"], log_inflow=log_q)
         eq["e_folding_time_yr"] = [e_folding_time(curve, q, l) for q, l in zip(eq["mean_inflow_m3"], eq["loss_m_yr"])]
         wb_proj.to_csv(out / "projection_waterbalance.csv", index=False)
         eq.to_csv(out / "equilibrium.csv", index=False)
-        plots.plot_cv(p_q / 1e6, (m_q / 1e6).assign(coverage_90=m_q["coverage_90"]), figs / "cv_inflow.png",
-                      "10⁶ m³", "Onyx River seasonal inflow: GP cross-validation", tag)
+        if log_q:
+            plots.plot_cv(p_q, m_q, figs / "cv_inflow.png", "ln m³",
+                          "Onyx River seasonal inflow (log): GP cross-validation", tag)
+        else:
+            plots.plot_cv(p_q / 1e6, (m_q / 1e6).assign(coverage_90=m_q["coverage_90"]), figs / "cv_inflow.png",
+                          "10⁶ m³", "Onyx River seasonal inflow: GP cross-validation", tag)
         summary["water_balance"] = {"loss_m_yr": loss_mean, "loss_sd_m_yr": loss_sd, "n_seasons": len(loss_tab),
                                     "equilibrium": eq.round(3).to_dict(orient="records")}
         panels["Water-balance engine (inflow − ice ablation)"] = wb_proj

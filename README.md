@@ -48,11 +48,70 @@ flowchart LR
 
 | Piece | State |
 |---|---|
-| REMA fetch, lake detection, hypsometry | **Working on real data** (figures below) |
-| Water-balance, lake-ice and statistical engines | Working; tested on synthetic data with known parameters |
-| LTER lake levels, Onyx discharge, met, ice thickness | **You download these** (EDI has a login and bot check, so scripted downloads aren't possible) |
-| RACMO layers | **You download these** from the Quantarctica package |
+| REMA fetch, lake detection, hypsometry to +150 m | **Working on real data** |
+| Water balance, lake ice, statistical engines | **Run on real data**: LTER packages knb-lter-mcm.68.15, 7015.22, 9122.7 and 67.19 |
+| Climate forcing | **Real**: RACMO2.3p2 driven by CESM2, historical and SSP1-2.6, 2-4.5, 5-8.5 (yearly) |
+| Flood intersection with ASMA and historic sites | Waiting on the Quantarctica vector layers |
 | Allan Hills DTS check | Reader written; data download sits behind a reCAPTCHA |
+
+## Results (real data, first pass)
+
+![Projections](figures/projections.png)
+
+**1. The water balance closes.** Across seasons, Onyx River inflow and Lake Vanda's level
+change correlate at r = 0.99. Calibrating against 36 seasons gives a net loss through the ice
+cover of **0.215 ± 0.176 m/yr**. The independent lake-ice model implies 0.32 m/yr of water
+lost through ablation, so the two estimates agree to within a factor of 1.5 (closure ratio
+0.67).
+
+**2. Lake Vanda is committed to rising even without further warming.** At today's climate,
+mean inflow (3.5 × 10⁶ m³/yr) only balances ice-cover loss once the lake covers about
+16 km². That happens **≈ 45 m above today's level**, with an e-folding time of
+**≈ 160 years**. This independently reproduces Castendyk et al.'s (2016) conclusion that Vanda
+will keep rising for about two centuries. The no-warming control rises 0.33 m in its first
+year (observed: 0.34 m/yr since 1994), **+7 m (2–12 m) by 2050 and +17 m (10–24 m) by 2100**.
+
+**3. Warming makes it much faster, but those numbers are less certain.** In the observations,
+seasonal inflow grows about 2.4× per +1 °C of December–January air temperature (28 seasons).
+That steep response comes from the 2001–02 flood summer and the 2008–2010 high-flow years.
+Applying RACMO's warming:
+
+| Water-balance rise (median, 5–95 %) | 2050 | 2100 |
+|---|---|---|
+| No further warming | +7 m (2–12) | +17 m (10–24) |
+| SSP1-2.6 | +27 m (21–34) | +72 m (67–76) |
+| SSP2-4.5 | +28 m (21–34) | +80 m (75–85) |
+| SSP5-8.5 | +36 m (29–42) | +109 m (103–115) |
+
+Read these with three caveats:
+- **Annual vs summer warming.** The yearly RACMO files give annual-mean warming, which is
+  winter-amplified in Antarctica. With `racmo.summer_scaling: 0.5` (summer warms half as
+  much), 2050 rises drop to about +15 to +20 m. Seasonal (monthly) future RACMO fields
+  would settle this.
+- **Extrapolation.** After about 2060, most simulated summers are warmer than any observed one
+  (`frac_outside_training` reaches 0.7–1.0). By then the result reflects the model's
+  assumptions more than the data. A log-inflow model (`model.log_inflow: true`) blows up
+  exponentially there, which shows how poorly that range is constrained.
+- **Unlimited glacier supply.** Inflow is assumed to scale with degree-days indefinitely.
+  Glacier retreat, changing albedo and radiation-driven melt are not modelled.
+
+The left panel (statistical engine) learns level change directly and ignores the lake
+spreading as it rises. That is fine for a few metres, but its 2100 values are not physical.
+It is kept as the baseline that shows why the water balance matters.
+
+**4. The ice cover thins.** The ice model fits the 12 Vanda thickness surveys (3.2–3.3 m,
+RMSE 0.15 m) with a basal heat flux of 9.9 W/m². Its response time is short (about 2 years),
+so the ice tracks climate closely. Projected thickness by 2100: 3.2 m with no warming;
+2.7 m (SSP1-2.6), 2.5 m (SSP2-4.5) and 2.0 m (SSP5-8.5).
+
+![Ice](figures/ice_thickness.png)
+![Flood extents 2100](figures/inundation.png)
+
+**Forecast skill, honestly.** In leave-one-season-out cross-validation, degree-days barely
+beat climatology for year-to-year inflow (median absolute error 2.4 vs 2.9 × 10⁶ m³; RMSE is
+dominated by flood summers). The long-run trajectory is set by the mean response, which is
+better constrained than single seasons. Better predictors are the obvious next step: solar
+radiation and wind are in the station file.
 
 ### Real data: Lake Vanda hypsometry from REMA v2 (10 m)
 
@@ -61,8 +120,9 @@ flowchart LR
 
 The ice surface sits at 41.4 m above the WGS84 ellipsoid. REMA heights are ellipsoidal;
 only height differences are used, so no geoid correction is needed. The lake plus the
-connected low ground covers about 7.2 km² today. The curve flattens up-valley to the west,
-so each metre of rise adds about 0.15–0.2 km².
+connected low ground covers about 7.2 km² today. Up to about +40 m, each metre of rise adds
+about 0.15–0.2 km². Above that, the water spreads along the Wright Valley floor much faster:
+19 km² at +50 m and 44 km² at +100 m.
 
 ### Pipeline demo (synthetic data, **not results**)
 
@@ -102,9 +162,11 @@ pytest
 
 ## Method notes and honest limitations
 
-- **Delta change.** RACMO's 27 km grid cannot resolve the valley (and its föhn events), so
-  only RACMO *changes* are used. Annual-mean warming is applied evenly to every summer hour.
-  That's a first-order assumption, because summer warming can differ from the annual mean.
+- **Delta change.** RACMO's 27 km grid cannot resolve the valley (and its föhn events). The
+  nearest cells sit at 900–1600 m, against 96 m for the lake, so only RACMO *changes* are used.
+  They are taken relative to 1994–2025, the years the station record covers, and smoothed with
+  a 21-year running mean. Annual-mean warming is applied evenly to every summer hour, scaled by
+  `racmo.summer_scaling`.
 - **Extrapolation.** Warm-scenario summers can lie outside the observed degree-day range.
   The GP has a linear kernel term so it doesn't revert to the mean outside the data, and
   every projection reports `frac_outside_training`. Read high-end SSP5-8.5 numbers with that

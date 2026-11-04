@@ -20,6 +20,7 @@ dependencies = [
   "geopandas>=0.14",
   "shapely>=2.0",
   "matplotlib>=3.8",
+  "netCDF4>=1.6",
   "pyyaml>=6.0",
 ]
 

@@ -34,6 +34,18 @@ def find_col(df: pd.DataFrame, *keys: str, exclude: tuple[str, ...] = (), requir
     return None
 
 
+def parse_dates(values) -> pd.DatetimeIndex:
+    """Parse dates, fixing two-digit years that land in the future (e.g. '12/5/69' -> 2069).
+
+    The Onyx River daily export writes dates as m/d/yy and starts in 1969.
+    """
+    idx = pd.DatetimeIndex(pd.to_datetime(values, errors="coerce"))
+    future = idx > pd.Timestamp.now() + pd.Timedelta(days=366)
+    if future.any():
+        idx = idx.where(~future, idx - pd.DateOffset(years=100))
+    return pd.DatetimeIndex(idx)
+
+
 def season_of(index) -> np.ndarray:
     idx = pd.DatetimeIndex(index)
     return np.where(idx.month >= 7, idx.year, idx.year - 1)
@@ -81,10 +93,10 @@ _Q_TO_M3S = {"l/s": 1e-3, "m3/s": 1.0, "cfs": 0.0283168}
 def load_discharge(path, date: str | None = None, q: str | None = None, units: str = "l/s") -> pd.Series:
     """Discharge series in m^3/s. MCM LTER stream gauges report L/s; set ``units`` otherwise."""
     df = pd.read_csv(path, low_memory=False)
-    q = q or find_col(df, "discharge_rate", "discharge", "dsch", "flow")
+    q = q or find_col(df, "discharge_rate", "avg_discharge", "discharge", "dsch", "flow")
     date = date or find_col(df, "date_time", "datetime", "timestamp", "date", "time", exclude=(q,))
     s = pd.Series(pd.to_numeric(df[q], errors="coerce").to_numpy() * _Q_TO_M3S[units.lower()],
-                  index=pd.to_datetime(df[date], errors="coerce"), name="q_m3s")
+                  index=parse_dates(df[date]), name="q_m3s")
     s = s[s.index.notna()].sort_index()
     return s[~s.index.duplicated()].clip(lower=0)
 
