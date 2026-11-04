@@ -59,12 +59,5 @@ Optional layers from the [data catalog](https://sites.npolar.no/quantarctica/dat
 
 | Layer | Used for | Reference |
 |---|---|---|
-| 10 m firn temperature, Veldhuijsen IMAU-FDM | DTS check | doi:10.5194/tc-17-1675-2023 |
 | ASMA, ASPA polygons, Historic Sites and Monuments (ATS); building and ground disturbance footprints (Brooks) | flood intersection | see each catalogue entry |
 | Ice surface flow speed (ITS_LIVE), ICESat-2 ATL15 elevation change | future work: Wright Lower Glacier | see catalogue |
-
-## Manual: fibre-optic DTS
-
-`dts.allan_hills_dir`: unzip `temp_data_sorted_by_borehole.zip` from
-[USAP-DC 602025](https://www.usap-dc.org/view/dataset/602025) (reCAPTCHA). Manos & Shaya,
-doi:10.15784/602025, CC BY 4.0.

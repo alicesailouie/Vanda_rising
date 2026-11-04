@@ -25,9 +25,8 @@ pieces:
 3. **Statistical baseline.** A direct regression from forcing to level change, used to show
    what the physics adds.
 
-On top of that sit **flood mapping** (REMA v2, intersected with Quantarctica's ASMA, historic
-site and footprint layers) and an independent **fibre-optic check** of the climate forcing:
-distributed temperature sensing (DTS) in Allan Hills boreholes, about 100 km away.
+On top of that sits **flood mapping**: REMA v2 shorelines intersected with Quantarctica's ASMA,
+historic site and footprint layers.
 
 ```mermaid
 flowchart LR
@@ -51,7 +50,6 @@ flowchart LR
 | Water balance, lake ice, statistical engines | **Run on real data**: LTER packages knb-lter-mcm.68.15, 7015.22, 9122.7 and 67.19 |
 | Climate forcing | **Real**: RACMO2.3p2 driven by CESM2, historical and SSP1-2.6, 2-4.5, 5-8.5 (yearly) |
 | Flood intersection with ASMA and historic sites | Waiting on the Quantarctica vector layers |
-| Allan Hills DTS check | Reader written; data download sits behind a reCAPTCHA |
 
 ## Results (real data, first pass)
 
@@ -141,7 +139,6 @@ vanda fetch-dem     # REMA v2 window over Lake Vanda (public COGs, no login)
 vanda hypsometry    # real level-area-volume curve and flood maps
 # ...download LTER and Quantarctica files (docs/data_sources.md), edit config.yaml, then:
 vanda run
-vanda dts-check     # optional: Allan Hills fibre-optic DTS vs RACMO / IMAU-FDM
 pytest
 ```
 
@@ -156,8 +153,6 @@ pytest
    response time? Does the ice model's ablation agree with the water balance's loss term?
 4. **Footprint.** Which protected-area zones, historic sites and disturbance footprints do the
    projected shorelines reach?
-5. **Forcing credibility.** Do RACMO 2 m temperature and IMAU-FDM firn temperature match the
-   DTS-measured near-surface ice temperature at Allan Hills?
 
 ## Method notes and honest limitations
 
