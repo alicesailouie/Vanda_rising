@@ -4,7 +4,6 @@ import pytest
 
 from vanda_rising import hypsometry as hyp
 from vanda_rising import lakeice, lter, synthetic, waterbalance
-from vanda_rising.dts import load_dts_dir, near_surface_temperature
 from vanda_rising.model import build_dataset, cross_validate, fit
 from vanda_rising.scenarios import change_timeseries
 
@@ -111,15 +110,3 @@ def test_change_timeseries_neutral_at_baseline():
     ts = change_timeseries(ch, [2000, 2037, 2100], "delta")
     assert ts.loc[2000, "s"] == pytest.approx(0.0, abs=0.02)
     assert ts.loc[2100, "s"] == pytest.approx(3.0)
-
-
-# ---------------------------------------------------------------- fibre-optic DTS
-def test_dts_reader(tmp_path):
-    d = tmp_path / "602025" / "ALHIC2301"
-    d.mkdir(parents=True)
-    z = np.arange(0, 100, 0.5)
-    pd.DataFrame({"Depth (m)": z, "Temperature (C)": -30 + 0.02 * z}).to_csv(d / "profile.csv", index=False)
-    df = load_dts_dir(tmp_path / "602025")
-    nst = near_surface_temperature(df, (10, 20))
-    assert nst.index[0] == "ALHIC2301"
-    assert nst["t_band_mean_c"].iloc[0] == pytest.approx(-29.7, abs=0.01)

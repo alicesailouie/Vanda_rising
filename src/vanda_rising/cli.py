@@ -3,7 +3,6 @@
     vanda fetch-dem       # REMA window around the lake (cloud-optimised GeoTIFF, no login)
     vanda hypsometry      # real-data level-area-volume curve and flood extents (DEM only)
     vanda run             # full analysis on real data (see docs/data_sources.md)
-    vanda dts-check       # Allan Hills fibre-optic DTS vs RACMO / IMAU-FDM
     vanda demo            # whole pipeline on SYNTHETIC data, no downloads needed
 """
 from __future__ import annotations
@@ -237,19 +236,6 @@ def cmd_hypsometry(cfg):
     print(curve.iloc[:: max(1, len(curve) // 10)].round(3).to_string(index=False))
 
 
-def cmd_dts(cfg):
-    from . import dts
-
-    D = cfg["dts"]
-    df = dts.load_dts_dir(resolve(cfg, D["allan_hills_dir"]))
-    nst = dts.near_surface_temperature(df, tuple(D["depth_band_m"]))
-    cmp = dts.compare_with_models(nst, {k: resolve(cfg, v) for k, v in D["compare_rasters"].items()},
-                                  D["site_lon"], D["site_lat"])
-    out = out_dir(cfg)
-    cmp.to_csv(out / "dts_check.csv")
-    print(cmp.round(2).to_string())
-
-
 def cmd_demo(cfg):
     m = synthetic.met()
     levels, inflow, ice = synthetic.lake_records(m)
@@ -270,7 +256,7 @@ def cmd_demo(cfg):
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="vanda", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default="config.yaml")
-    ap.add_argument("command", choices=["fetch-dem", "hypsometry", "run", "dts-check", "demo"])
+    ap.add_argument("command", choices=["fetch-dem", "hypsometry", "run", "demo"])
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
     warnings.filterwarnings("ignore", message=".*ConvergenceWarning.*")
@@ -281,8 +267,6 @@ def main(argv=None):
     elif a.command == "run":
         s = analyse(load_real_inputs(cfg), cfg, out_dir(cfg), resolve(cfg, cfg["paths"]["figures"]))
         print(json.dumps(s, indent=2, default=float))
-    elif a.command == "dts-check":
-        cmd_dts(cfg)
     else:
         cmd_demo(cfg)
 

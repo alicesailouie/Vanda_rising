@@ -78,16 +78,6 @@ inundation:
     - data/raw/quantarctica/building_footprint_brooks.gpkg
     - data/raw/quantarctica/ground_disturbance_brooks.gpkg
 
-dts:
-  # Allan Hills borehole DTS, USAP-DC 10.15784/602025 (manual download, reCAPTCHA)
-  allan_hills_dir: data/raw/dts/602025
-  site_lon: 159.375
-  site_lat: -76.727
-  depth_band_m: [10, 20]
-  compare_rasters:
-    racmo_t2m_1979_2022: data/raw/quantarctica/racmo_t2m_1979_2022.tif
-    imau_fdm_t10m: data/raw/quantarctica/imau_fdm_10m_temperature.tif
-
 paths:
   outputs: outputs
   figures: figures
