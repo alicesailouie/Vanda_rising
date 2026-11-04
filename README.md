@@ -31,17 +31,16 @@ distributed temperature sensing (DTS) in Allan Hills boreholes, about 100 km awa
 
 ```mermaid
 flowchart LR
-  RACMO["RACMO2.3p2 SSP1-2.6/2-4.5/5-8.5<br/>ΔT₂ₘ, sublimation ratio"] --> F[Warmed station<br/>temperatures]
-  MET[LTER Lake Vanda met] --> F
-  F --> GPQ[GP: Onyx inflow] --> WB[Water balance<br/>dV = Q − l·A&#40;h&#41;]
-  LV[LTER lake levels] --> CAL[Calibrate loss l] --> WB
-  Q[LTER Onyx discharge] --> GPQ
+  RACMO["RACMO2.3p2 SSP1-2.6 / 2-4.5 / 5-8.5<br/>warming, sublimation ratio"] --> F["Warmed station<br/>temperatures"]
+  MET["LTER Lake Vanda met"] --> F
+  F --> GPQ["GP: Onyx inflow"] --> WB["Water balance<br/>dV = Q - l * A(h)"]
+  LV["LTER lake levels"] --> CAL["Calibrate loss l"] --> WB
+  Q["LTER Onyx discharge"] --> GPQ
   Q --> CAL
-  REMA[REMA v2 DEM] --> H[Hypsometry A&#40;h&#41;] --> WB
-  WB --> P[Level, area, equilibrium,<br/>e-folding time] --> INU[Flood extents ×<br/>ASMA / sites]
-  RACMO --> ICE[Lake-ice model] --> CL{Closure:<br/>l ≈ a·ρᵢ/ρw}
+  REMA["REMA v2 DEM"] --> H["Hypsometry A(h)"] --> WB
+  WB --> P["Level, area, equilibrium,<br/>e-folding time"] --> INU["Flood extents vs<br/>protected areas and sites"]
+  RACMO --> ICE["Lake-ice model"] --> CL{"Closure check:<br/>ice loss vs water loss"}
   CAL --> CL
-  DTS[Allan Hills fibre-optic DTS] -. checks .-> RACMO
 ```
 
 ## Status
@@ -180,12 +179,6 @@ pytest
   in the ice. Obryk et al. (2016) resolve these separately; this model does not.
 - **DEM epoch.** Set `lter.rema_epoch` to the REMA acquisition date (see the tile `meta.txt`
   files) so flood extents start from the right shoreline.
-
-## Fibre-optic sensing
-
-Public Antarctic fibre-optic datasets found (Nov 2026) and how they are used:
-[docs/fibre_optic_datasets.md](docs/fibre_optic_datasets.md). No DAS or DTS deployment in the
-Dry Valleys turned up. The Allan Hills borehole DTS is the closest and serves as a forcing check.
 
 ## Key references
 
